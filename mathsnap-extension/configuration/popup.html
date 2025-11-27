@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MathSnap AI</title>
+  <link rel="stylesheet" href="popup.css">
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Home View -->
+    <div id="home-view" class="view active">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">⚡</div>
+          <h1>MathSnap AI</h1>
+        </div>
+        <p class="subtitle">Solve any math problem instantly</p>
+      </div>
+
+      <div id="usage-bar" class="usage-container hidden">
+        <div class="usage-text">
+          <span id="problems-used">0</span>/<span id="max-problems">5</span> free problems used today
+        </div>
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button id="screenshot-btn" class="action-btn primary">
+          <div class="btn-content">
+            <span class="icon">📸</span>
+            <div class="btn-text">
+              <div class="btn-title">Screenshot Problem</div>
+              <div class="btn-subtitle">Capture from your screen</div>
+            </div>
+          </div>
+          <span class="premium-badge hidden">👑</span>
+        </button>
+
+        <button id="upload-btn" class="action-btn secondary">
+          <div class="btn-content">
+            <span class="icon">📁</span>
+            <div class="btn-text">
+              <div class="btn-title">Upload Image</div>
+              <div class="btn-subtitle">From your computer</div>
+            </div>
+          </div>
+          <span class="premium-badge hidden">👑</span>
+        </button>
+
+        <button id="type-btn" class="action-btn secondary">
+          <div class="btn-content">
+            <span class="icon">⌨️</span>
+            <div class="btn-text">
+              <div class="btn-title">Type Problem</div>
+              <div class="btn-subtitle">Enter manually</div>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      <button id="upgrade-btn" class="upgrade-btn hidden">
+        <span class="icon">👑</span>
+        <span>Upgrade to Premium</span>
+      </button>
+    </div>
+
+    <!-- Type Problem View -->
+    <div id="type-view" class="view">
+      <div class="view-header">
+        <button class="back-btn" data-back="home">← Back</button>
+        <h2>Type Your Problem</h2>
+      </div>
+      <div class="type-container">
+        <textarea 
+          id="problem-input" 
+          placeholder="Enter your math problem here...&#10;Example: 2x + 5 = 15"
+          rows="6"
+        ></textarea>
+        <button id="solve-typed-btn" class="solve-btn">Solve Problem</button>
+      </div>
+    </div>
+
+    <!-- Solving View -->
+    <div id="solving-view" class="view">
+      <div class="solving-content">
+        <div class="solving-icon">⚡</div>
+        <h2>Analyzing your problem...</h2>
+        <p>AI is working its magic ✨</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar-animated"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution View -->
+    <div id="solution-view" class="view">
+      <div class="view-header">
+        <button class="back-btn" data-back="home">← Back</button>
+        <div class="solved-badge">
+          <span>📈</span>
+          <span>Solved!</span>
+        </div>
+      </div>
+
+      <div class="problem-display">
+        <div class="label">Problem:</div>
+        <div id="problem-text" class="problem-text"></div>
+      </div>
+
+      <div class="steps-container">
+        <h3>Step-by-step solution:</h3>
+        <div id="steps-list"></div>
+      </div>
+
+      <div class="answer-display">
+        <div class="label">Final Answer:</div>
+        <div id="final-answer" class="answer-text"></div>
+      </div>
+
+      <div class="action-row">
+        <button id="save-btn" class="secondary-action-btn">Save Solution</button>
+        <button id="share-btn" class="secondary-action-btn">Share</button>
+      </div>
+    </div>
+
+    <!-- Upgrade View -->
+    <div id="upgrade-view" class="view">
+      <div class="view-header">
+        <button class="back-btn" data-back="home">← Back</button>
+      </div>
+
+      <div class="upgrade-content">
+        <div class="upgrade-logo">👑</div>
+        <h2>Upgrade to Premium</h2>
+        <p class="upgrade-subtitle">Unlimited problem solving & advanced features</p>
+
+        <div class="pricing-card">
+          <div class="price">
+            <span class="price-amount">$4.99</span>
+            <span class="price-period">per month</span>
+          </div>
+          <ul class="features-list">
+            <li>✓ Unlimited problems per day</li>
+            <li>✓ Image recognition & screenshots</li>
+            <li>✓ Detailed concept explanations</li>
+            <li>✓ Save solution history</li>
+            <li>✓ Priority support</li>
+          </ul>
+        </div>
+
+        <button id="checkout-btn" class="checkout-btn">Start Premium Now</button>
+        <p class="guarantee">Cancel anytime. 7-day money-back guarantee.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- File input (hidden) -->
+  <input type="file" id="file-input" accept="image/*" style="display: none;">
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="../lib/api-client.js"></script>
+  <script src="../lib/analytics.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

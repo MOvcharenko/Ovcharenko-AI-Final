@@ -2,10 +2,17 @@
 // Replace with your actual API key (store securely in production!)
 
 const APIClient = {
-  // Configuration
-  API_KEY: 'YOUR_API_KEY_HERE', // TODO: Replace with your key
-  API_ENDPOINT: 'https://api.anthropic.com/v1/messages',
-  MODEL: 'claude-sonnet-4-20250514',
+  // Configuration - API key is loaded from Chrome storage
+  API_KEY: null,
+  API_PROVIDER: null,
+  
+  // Endpoints
+  ANTHROPIC_ENDPOINT: 'https://api.anthropic.com/v1/messages',
+  OPENAI_ENDPOINT: 'https://api.openai.com/v1/chat/completions',
+  
+  // Models
+  ANTHROPIC_MODEL: 'claude-sonnet-4-20250514',
+  OPENAI_MODEL: 'gpt-4-vision-preview',
   
   /**
    * Solve a math problem using AI
@@ -222,5 +229,5 @@ const OpenAIClient = {
 };
 
 // Export (uncomment the one you want to use)
-window.APIClient = APIClient; // For Anthropic Claude
+// window.APIClient = APIClient; // For Anthropic Claude
 // window.APIClient = OpenAIClient; // For OpenAI

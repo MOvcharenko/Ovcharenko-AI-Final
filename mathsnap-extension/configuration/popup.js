@@ -77,6 +77,11 @@ function updateUI() {
 
 // Setup event listeners
 function setupEventListeners() {
+  // Settings button
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
+  });
+  
   // Navigation
   document.querySelectorAll('.back-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -194,6 +199,15 @@ async function solveProblem(input, type) {
   const startTime = Date.now();
   
   try {
+    // Check if API key is configured
+    const result = await chrome.storage.local.get(['apiKey']);
+    if (!result.apiKey) {
+      alert('Please configure your API key in settings first!');
+      chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
+      showView('home');
+      return;
+    }
+    
     // Call AI API
     const solution = await APIClient.solveMath(input, type);
     

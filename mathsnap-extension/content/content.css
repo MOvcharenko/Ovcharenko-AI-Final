@@ -1,0 +1,34 @@
+#mathsnap-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999999;
+  cursor: crosshair;
+}
+
+#mathsnap-selection {
+  position: fixed;
+  border: 2px solid #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  display: none;
+  z-index: 1000000;
+  pointer-events: none;
+}
+
+#mathsnap-instructions {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000001;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+}

@@ -64,6 +64,12 @@ const Analytics = {
    * Send event to backend
    */
   async sendToBackend(event) {
+    // Skip if no endpoint configured
+    if (!this.ENDPOINT || this.ENDPOINT === 'YOUR_ANALYTICS_ENDPOINT') {
+      console.log('📊 Analytics: No backend endpoint configured, skipping remote tracking');
+      return;
+    }
+    
     try {
       await fetch(this.ENDPOINT, {
         method: 'POST',
@@ -73,7 +79,8 @@ const Analytics = {
         body: JSON.stringify(event)
       });
     } catch (error) {
-      console.error('Failed to send analytics:', error);
+      // Don't throw error for analytics failures
+      console.warn('Analytics backend unavailable:', error.message);
     }
   },
   

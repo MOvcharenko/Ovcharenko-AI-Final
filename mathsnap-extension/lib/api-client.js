@@ -229,5 +229,5 @@ const OpenAIClient = {
 };
 
 // Export (uncomment the one you want to use)
-// window.APIClient = APIClient; // For Anthropic Claude
+window.APIClient = APIClient; // For Anthropic Claude
 // window.APIClient = OpenAIClient; // For OpenAI

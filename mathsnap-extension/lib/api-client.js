@@ -86,20 +86,6 @@ const APIClient = {
    * Build the message payload for the API
    */
   buildMessage(input, type) {
-    const systemPrompt = `You are a helpful math tutor. Solve the math problem step-by-step.
-
-CRITICAL: You MUST respond with ONLY valid JSON, no other text. Format:
-{
-  "problem": "original problem",
-  "steps": [
-    {"step": 1, "description": "what we do", "equation": "the math"},
-    {"step": 2, "description": "next step", "equation": "more math"}
-  ],
-  "answer": "final answer"
-}
-
-Do not include markdown code blocks, just pure JSON.`;
-
     if (type === 'image') {
       return [
         {
@@ -115,7 +101,19 @@ Do not include markdown code blocks, just pure JSON.`;
             },
             {
               type: 'text',
-              text: 'Solve this math problem step by step. Respond with ONLY JSON, no other text.'
+              text: `Solve this math problem step by step.
+
+Return ONLY a JSON object with this EXACT format:
+{
+  "problem": "the original problem",
+  "steps": [
+    {"step": 1, "description": "Subtract 5 from both sides", "equation": "2x + 5 - 5 = 15 - 5"},
+    {"step": 2, "description": "Simplify", "equation": "2x = 10"}
+  ],
+  "answer": "x = 5"
+}
+
+No other text, just the JSON.`
             }
           ]
         }
@@ -124,7 +122,19 @@ Do not include markdown code blocks, just pure JSON.`;
       return [
         {
           role: 'user',
-          content: `Solve this math problem: ${input}\n\nRespond with ONLY the JSON object, nothing else.`
+          content: `Solve this math problem step by step: ${input}
+
+Return ONLY a JSON object with this EXACT format:
+{
+  "problem": "${input}",
+  "steps": [
+    {"step": 1, "description": "what we do in this step", "equation": "the equation"},
+    {"step": 2, "description": "next step", "equation": "simplified equation"}
+  ],
+  "answer": "final answer"
+}
+
+No other text, just the JSON.`
         }
       ];
     }
@@ -286,41 +296,73 @@ Do not include markdown code blocks, just pure JSON.`;
         .join('\n');
       
       console.log('📝 Extracted text:', text);
+      console.log('📏 Text length:', text.length);
       
       // Try to parse as JSON
       let solution;
       
       // Remove markdown code blocks if present
-      const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
-      console.log('🧹 Cleaned text:', cleanText);
+      let cleanText = text.replace(/```json\n?/g, '').replace(/\n?```/g, '').trim();
+      
+      // Also try to extract JSON from text if it's wrapped in other content
+      const jsonMatch = text.match(/\{[\s\S]*"problem"[\s\S]*"steps"[\s\S]*"answer"[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanText = jsonMatch[0];
+        console.log('🎯 Found JSON in text:', cleanText);
+      }
+      
+      console.log('🧹 Cleaned text for parsing:', cleanText.substring(0, 200) + '...');
       
       try {
         solution = JSON.parse(cleanText);
-        console.log('✅ Parsed JSON solution:', solution);
+        console.log('✅ Successfully parsed JSON solution:', JSON.stringify(solution, null, 2));
       } catch (jsonError) {
-        // If JSON parsing fails, create a simple solution
-        console.warn('⚠️ Failed to parse JSON, creating fallback solution');
-        console.warn('JSON error:', jsonError.message);
+        console.warn('⚠️ Failed to parse JSON:', jsonError.message);
+        console.warn('Attempted to parse:', cleanText.substring(0, 100));
         solution = this.createFallbackSolution(text, originalInput);
       }
       
-      // Validate solution structure
+      // Validate and fix solution structure
       if (!solution.problem) {
         console.warn('⚠️ Missing "problem" field, adding it');
-        solution.problem = typeof originalInput === 'string' ? originalInput : 'Math problem from image';
+        solution.problem = typeof originalInput === 'string' ? originalInput : 'Math problem';
       }
       
-      if (!solution.steps || !Array.isArray(solution.steps)) {
-        console.warn('⚠️ Missing or invalid "steps" field, creating from text');
+      // Fix steps format if needed
+      if (!solution.steps || !Array.isArray(solution.steps) || solution.steps.length === 0) {
+        console.warn('⚠️ Missing or invalid "steps" field');
+        console.log('Current steps:', solution.steps);
         solution.steps = this.extractStepsFromText(text);
+      } else if (typeof solution.steps[0] === 'string') {
+        // Steps are strings, convert to objects
+        console.log('🔧 Converting string steps to objects');
+        solution.steps = solution.steps.map((stepText, index) => ({
+          step: index + 1,
+          description: index === 0 ? 'Starting equation' : `Step ${index}`,
+          equation: stepText
+        }));
+      } else if (!solution.steps[0].step || !solution.steps[0].equation) {
+        // Steps are objects but missing required fields
+        console.log('🔧 Fixing step objects');
+        solution.steps = solution.steps.map((step, index) => ({
+          step: step.step || index + 1,
+          description: step.description || `Step ${index + 1}`,
+          equation: step.equation || step.text || step.expression || ''
+        }));
       }
       
+      // Fix answer field
       if (!solution.answer) {
         console.warn('⚠️ Missing "answer" field, extracting from text');
-        solution.answer = this.extractAnswerFromText(text);
+        // Check for "solution" field (what Claude returned)
+        if (solution.solution) {
+          solution.answer = solution.solution;
+        } else {
+          solution.answer = this.extractAnswerFromText(text, solution);
+        }
       }
       
-      console.log('✅ Final solution:', solution);
+      console.log('✅ Final validated solution:', JSON.stringify(solution, null, 2));
       return solution;
       
     } catch (error) {
@@ -378,25 +420,43 @@ Do not include markdown code blocks, just pure JSON.`;
   /**
    * Extract answer from text
    */
-  extractAnswerFromText(text) {
+  extractAnswerFromText(text, solution) {
+    // First check if answer is in the solution object but wrong format
+    if (solution && solution.answer && solution.answer !== '') {
+      return solution.answer;
+    }
+    
     // Try to find patterns like "x = 5" or "Answer: 5" or "= 5"
     const answerPatterns = [
-      /(?:answer|result|solution):\s*(.+?)(?:\n|$)/i,
-      /(?:final answer|the answer is):\s*(.+?)(?:\n|$)/i,
-      /=\s*([^\n=]+?)(?:\n|$)/,
-      /x\s*=\s*([^\n]+?)(?:\n|$)/i
+      /(?:final\s+answer|answer|result|solution)[:\s]+([^\n]+?)(?:\n|$)/i,
+      /(?:therefore|thus|so)[,:\s]+x\s*=\s*([^\n]+?)(?:\n|$)/i,
+      /x\s*=\s*([^\n]+?)(?:\n|$)/i,
+      /=\s*([0-9\-+*/\.\s]+?)(?:\n|$)/
     ];
     
     for (const pattern of answerPatterns) {
       const match = text.match(pattern);
-      if (match) {
+      if (match && match[1]) {
         return match[1].trim();
       }
     }
     
-    // If nothing found, return last line
+    // Check last step for answer
+    if (solution && solution.steps && solution.steps.length > 0) {
+      const lastStep = solution.steps[solution.steps.length - 1];
+      if (lastStep.equation) {
+        // Extract value after = in last equation
+        const eqMatch = lastStep.equation.match(/=\s*([^\n]+)$/);
+        if (eqMatch) {
+          return eqMatch[1].trim();
+        }
+        return lastStep.equation;
+      }
+    }
+    
+    // If nothing found, return last non-empty line
     const lines = text.split('\n').filter(l => l.trim());
-    return lines[lines.length - 1] || 'See solution above';
+    return lines[lines.length - 1]?.trim() || 'See solution above';
   }
 };
 

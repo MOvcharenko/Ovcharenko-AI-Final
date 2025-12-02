@@ -200,13 +200,21 @@ async function solveProblem(input, type) {
   
   try {
     // Check if API key is configured
-    const result = await chrome.storage.local.get(['apiKey']);
+    const result = await chrome.storage.local.get(['apiKey', 'apiProvider']);
+    console.log('🔍 Storage check:', {
+      hasKey: !!result.apiKey,
+      keyPrefix: result.apiKey ? result.apiKey.substring(0, 10) : 'NONE',
+      provider: result.apiProvider
+    });
+    
     if (!result.apiKey) {
       alert('Please configure your API key in settings first!');
       chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
       showView('home');
       return;
     }
+    
+    console.log('📝 Solving problem:', { input, type });
     
     // Call AI API
     const solution = await APIClient.solveMath(input, type);
@@ -246,20 +254,50 @@ async function solveProblem(input, type) {
 
 // Display solution
 function displaySolution(solution) {
-  document.getElementById('problem-text').textContent = solution.problem;
-  document.getElementById('final-answer').textContent = solution.answer;
+  console.log('🎨 Displaying solution:', solution);
   
+  // Display problem
+  const problemEl = document.getElementById('problem-text');
+  problemEl.textContent = solution.problem || 'Math problem';
+  
+  // Display final answer
+  const answerEl = document.getElementById('final-answer');
+  answerEl.textContent = solution.answer || 'See steps above';
+  
+  // Display steps
   const stepsList = document.getElementById('steps-list');
   stepsList.innerHTML = '';
   
+  if (!solution.steps || solution.steps.length === 0) {
+    console.warn('⚠️ No steps to display');
+    const emptyStep = document.createElement('div');
+    emptyStep.className = 'step-item';
+    emptyStep.innerHTML = `
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <div class="step-description">Solution provided</div>
+        <div class="step-equation">Check the final answer below</div>
+      </div>
+    `;
+    stepsList.appendChild(emptyStep);
+    return;
+  }
+  
   solution.steps.forEach(step => {
+    console.log('Adding step:', step);
+    
     const stepEl = document.createElement('div');
     stepEl.className = 'step-item';
+    
+    const stepNumber = step.step || stepsList.children.length + 1;
+    const description = step.description || 'Step';
+    const equation = step.equation || step.description || '';
+    
     stepEl.innerHTML = `
-      <div class="step-number">${step.step}</div>
+      <div class="step-number">${stepNumber}</div>
       <div class="step-content">
-        <div class="step-description">${step.description}</div>
-        <div class="step-equation">${step.equation}</div>
+        <div class="step-description">${description}</div>
+        <div class="step-equation">${equation}</div>
       </div>
     `;
     stepsList.appendChild(stepEl);

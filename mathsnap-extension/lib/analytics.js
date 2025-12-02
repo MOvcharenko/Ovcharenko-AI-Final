@@ -144,7 +144,7 @@ const Analytics = {
 
 // PostHog Integration (if you want to use PostHog)
 const PostHogAnalytics = {
-  API_KEY: 'YOUR_POSTHOG_KEY',
+  API_KEY: 'phc_x8OaNbVVPxgy1QF3SAWA7Q1ptDVNaURez9BcVp6rHmb',
   HOST: 'https://app.posthog.com',
   
   async track(eventName, properties = {}) {
@@ -209,6 +209,6 @@ const SupabaseAnalytics = {
 };
 
 // Export the analytics client you want to use
-window.Analytics = Analytics; // Default local analytics
-// window.Analytics = PostHogAnalytics; // Use PostHog
+// window.Analytics = Analytics; // Default local analytics
+window.Analytics = PostHogAnalytics; // Use PostHog
 // window.Analytics = SupabaseAnalytics; // Use Supabase

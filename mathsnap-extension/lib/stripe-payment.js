@@ -1,7 +1,7 @@
 // stripe-payment.js — Stripe Payment Link version (TEST MODE ok!)
 
 const StripePayment = {
-  PAYMENT_LINK: "YOUR_PAYMENT_LINK_HERE",  // You already have this
+  PAYMENT_LINK: "https://buy.stripe.com/test_eVqbJ1gK4aLbcfz8u797G00",  // You already have this
   
   SUCCESS_URL: chrome.runtime.getURL("success.html"),
   CANCEL_URL: chrome.runtime.getURL("popup/popup.html"),

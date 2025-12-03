@@ -22,6 +22,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 // ---------------------------
+// View Management
+// ---------------------------
+
+function showView(viewId) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(view => {
+    view.classList.remove('active');
+  });
+  
+  // Show the requested view
+  const targetView = document.getElementById(`${viewId}-view`);
+  if (targetView) {
+    targetView.classList.add('active');
+  } else {
+    console.error(`View not found: ${viewId}-view`);
+    // Fallback to home
+    document.getElementById('home-view').classList.add('active');
+  }
+}
+
+
+// ---------------------------
 // Load + Save State
 // ---------------------------
 
@@ -101,10 +123,20 @@ function updateUI() {
 // ---------------------------
 
 function setupEventListeners() {
-
+  // Settings & Analytics buttons
   document.getElementById('settings-btn')
-    .addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") }));
+    .addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
+      if (window.analytics) analytics.track('settings_opened');
+    });
 
+  document.getElementById('analytics-btn')
+    .addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL("analytics.html") });
+      if (window.analytics) analytics.track('analytics_opened');
+    });
+
+  // View navigation
   document.querySelectorAll('.back-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.back || "home";
@@ -112,28 +144,76 @@ function setupEventListeners() {
     });
   });
 
-  document.getElementById('screenshot-btn').addEventListener('click', handleScreenshot);
-  document.getElementById('upload-btn').addEventListener('click', handleUpload);
-  document.getElementById('type-btn').addEventListener('click', () => showView('type'));
-  document.getElementById('solve-typed-btn').addEventListener('click', handleTypedProblem);
+  // Screenshot button - fixed logic
+  document.getElementById('screenshot-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('screenshot_clicked', { isPremium: state.isPremium });
+    
+    // Check if free user reached limit
+    if (!state.isPremium && state.problemsUsed >= state.maxFreeProblems) {
+      showView("upgrade");
+      return;
+    }
+    
+    // If free user with available problems, allow screenshot
+    handleScreenshot();
+  });
+  
+  // Upload button - fixed logic
+  document.getElementById('upload-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('upload_clicked', { isPremium: state.isPremium });
+    
+    // Check if free user reached limit
+    if (!state.isPremium && state.problemsUsed >= state.maxFreeProblems) {
+      showView("upgrade");
+      return;
+    }
+    
+    // If free user with available problems, allow upload
+    handleUpload();
+  });
+  
+  // Type button - fixed
+  document.getElementById('type-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('type_clicked');
+    showView('type');
+  });
+  
+  // Solve typed problem button
+  document.getElementById('solve-typed-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('solve_clicked', { method: 'typed' });
+    handleTypedProblem();
+  });
 
-  document.getElementById('upgrade-btn').addEventListener('click', () => showView('upgrade'));
-  document.getElementById('checkout-btn').addEventListener('click', handleCheckout);
+  // Upgrade button
+  document.getElementById('upgrade-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('upgrade_clicked');
+    showView('upgrade');
+  });
+  
+  // Checkout button
+  document.getElementById('checkout-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('checkout_initiated');
+    handleCheckout();
+  });
 
+  // File input
   document.getElementById('file-input').addEventListener('change', handleFileSelect);
 
-  document.getElementById('save-btn').addEventListener('click', handleSave);
-  document.getElementById('share-btn').addEventListener('click', handleShare);
-}
-
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove("active"));
-  document.getElementById(name + "-view").classList.add("active");
+  // Solution actions
+  document.getElementById('save-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('solution_saved');
+    handleSave();
+  });
+  
+  document.getElementById('share-btn').addEventListener('click', () => {
+    if (window.analytics) analytics.track('solution_shared');
+    handleShare();
+  });
 }
 
 
 // ---------------------------
-// Limits
+// Limits - simplified
 // ---------------------------
 
 function canSolveProblem() {
@@ -148,33 +228,34 @@ function canSolveProblem() {
 
 
 // ---------------------------
-// Screenshot
+// Screenshot - fixed
 // ---------------------------
 
 async function handleScreenshot() {
-  if (!state.isPremium) return showView("upgrade");
+  // Check if user can solve problems (limits)
   if (!canSolveProblem()) return;
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-
+    // Take screenshot using chrome.tabs API
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: "png" });
+    
+    // Convert to base64
     const base64 = dataUrl.split(",")[1];
     await solveProblem(base64, "image");
 
   } catch (e) {
     console.error("Screenshot error:", e);
-    alert("Screenshot failed.");
+    alert("Screenshot failed: " + e.message);
   }
 }
 
 
 // ---------------------------
-// Upload
+// Upload - fixed
 // ---------------------------
 
 function handleUpload() {
-  if (!state.isPremium) return showView("upgrade");
+  // Check if user can solve problems (limits)
   if (!canSolveProblem()) return;
 
   document.getElementById('file-input').click();
@@ -184,25 +265,38 @@ async function handleFileSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  const base64 = await fileToBase64(file);
-  await solveProblem(base64, "image");
+  try {
+    const base64 = await fileToBase64(file);
+    await solveProblem(base64, "image");
+  } catch (error) {
+    console.error("File upload error:", error);
+    alert("Failed to process image: " + error.message);
+  }
 }
 
 
 // ---------------------------
-// Typed Problem
+// Typed Problem - fixed
 // ---------------------------
 
 async function handleTypedProblem() {
   const input = document.getElementById('problem-input');
   const text = input.value.trim();
 
-  if (!text) return alert("Enter a problem first.");
+  if (!text) {
+    alert("Enter a math problem first.");
+    return;
+  }
 
   if (!canSolveProblem()) return;
 
-  await solveProblem(text, "text");
-  input.value = "";
+  try {
+    await solveProblem(text, "text");
+    input.value = "";
+  } catch (error) {
+    console.error("Typed problem error:", error);
+    alert("Failed to solve problem: " + error.message);
+  }
 }
 
 
@@ -213,28 +307,55 @@ async function handleTypedProblem() {
 async function solveProblem(input, type) {
   showView("solving");
 
+  const startTime = Date.now();
+
   try {
+    // Get API key from storage
     const { apiKey } = await chrome.storage.local.get(['apiKey']);
     if (!apiKey) {
-      alert("Set your API key first.");
+      alert("Set your API key first in Settings.");
       chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
       showView("home");
       return;
     }
 
+    // Call API client
     const result = await APIClient.solveMath(input, type);
 
+    // Track successful solve
+    const latency = Date.now() - startTime;
+    if (window.analytics) {
+      analytics.track('problem_solved', {
+        type: type,
+        latency: latency,
+        success: true,
+        isPremium: state.isPremium
+      });
+    }
+
+    // Update state
     state.problemsUsed += 1;
     state.currentSolution = result;
     await saveState();
 
+    // Display results
     displaySolution(result);
     updateUI();
     showView("solution");
 
   } catch (e) {
-    console.error(e);
-    alert("Failed to solve problem.");
+    console.error("Solve error:", e);
+    
+    // Track failed solve
+    if (window.analytics) {
+      analytics.track('problem_failed', {
+        type: type,
+        error: e.message,
+        isPremium: state.isPremium
+      });
+    }
+    
+    alert("Failed to solve problem: " + e.message);
     showView("home");
   }
 }
@@ -291,7 +412,7 @@ async function handleSave() {
   list.push({ ...state.currentSolution, timestamp: Date.now() });
 
   await chrome.storage.local.set({ savedSolutions: list });
-  alert("Saved!");
+  alert("Solution saved!");
 }
 
 function handleShare() {
@@ -300,8 +421,8 @@ function handleShare() {
   const text = `Problem: ${state.currentSolution.problem}\nAnswer: ${state.currentSolution.answer}`;
 
   navigator.clipboard.writeText(text)
-    .then(() => alert("Copied!"))
-    .catch(() => alert("Copy failed."));
+    .then(() => alert("Copied to clipboard!"))
+    .catch(() => alert("Failed to copy to clipboard."));
 }
 
 
@@ -310,9 +431,21 @@ function handleShare() {
 // ---------------------------
 
 function fileToBase64(file) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
+
+// Track popup open
+(async () => {
+  try {
+    if (window.analytics) {
+      await analytics.track('popup_open', { ts: new Date().toISOString() });
+    }
+  } catch (e) {
+    console.error("Analytics track error:", e);
+  }
+})();

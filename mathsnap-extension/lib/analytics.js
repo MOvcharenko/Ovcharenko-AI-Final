@@ -1,214 +1,208 @@
-// Analytics Tracker
-// Sends events to your analytics backend
+/*
+  Consolidated Analytics client for MathSnap extension.
+  - PostHog-compatible capture to <host>/capture/
+  - Stores config and events in chrome.storage.local
+  - Public API on window.analytics
+*/
 
-const Analytics = {
-  // Configuration
-  ENDPOINT: 'YOUR_ANALYTICS_ENDPOINT', // e.g., Supabase, PostHog, or custom backend
-  enabled: true,
-  
-  /**
-   * Track an event
-   * @param {string} eventName - Name of the event
-   * @param {Object} properties - Event properties
-   */
-  async track(eventName, properties = {}) {
-    if (!this.enabled) return;
-    
-    try {
-      const event = {
-        name: eventName,
-        properties: {
-          ...properties,
-          timestamp: Date.now(),
-          userAgent: navigator.userAgent,
-          extensionVersion: chrome.runtime.getManifest().version
-        }
+(function () {
+  const STORAGE = {
+    API_KEY: 'posthogApiKey',
+    HOST: 'posthogHost',
+    ENABLED: 'analyticsEnabled',
+    DISTINCT_ID: 'analyticsDistinctId',
+    EVENTS: 'analyticsEvents'
+  };
+
+  const DEFAULT_HOST = 'https://app.posthog.com';
+  const MAX_EVENTS = 1000;
+
+  function nowIso() { return new Date().toISOString(); }
+
+  async function getAll(keys) {
+    return await chrome.storage.local.get(keys);
+  }
+
+  async function setAll(obj) {
+    return await chrome.storage.local.set(obj);
+  }
+
+  async function ensureDistinctId() {
+    const r = await getAll([STORAGE.DISTINCT_ID]);
+    if (r[STORAGE.DISTINCT_ID]) return r[STORAGE.DISTINCT_ID];
+    const id = 'ext_' + Math.random().toString(36).slice(2, 12) + '_' + Date.now().toString(36);
+    await setAll({ [STORAGE.DISTINCT_ID]: id });
+    return id;
+  }
+
+  const Analytics = {
+    // Initialize or update config (apiKey, host, enabled)
+    async init({ apiKey, host, enabled } = {}) {
+      const updates = {};
+      if (apiKey !== undefined) updates[STORAGE.API_KEY] = apiKey;
+      if (host !== undefined) updates[STORAGE.HOST] = host || DEFAULT_HOST;
+      if (enabled !== undefined) updates[STORAGE.ENABLED] = !!enabled;
+      if (Object.keys(updates).length) await setAll(updates);
+      await ensureDistinctId();
+      return true;
+    },
+
+    async getSettings() {
+      const r = await getAll([STORAGE.API_KEY, STORAGE.HOST, STORAGE.ENABLED, STORAGE.DISTINCT_ID]);
+      return {
+        posthogApiKey: r[STORAGE.API_KEY] || '',
+        posthogHost: r[STORAGE.HOST] || DEFAULT_HOST,
+        analyticsEnabled: r[STORAGE.ENABLED] === undefined ? false : !!r[STORAGE.ENABLED],
+        analyticsDistinctId: r[STORAGE.DISTINCT_ID] || ''
       };
-      
-      // Store locally
-      await this.storeLocally(event);
-      
-      // Send to backend (optional)
-      if (this.ENDPOINT) {
-        await this.sendToBackend(event);
-      }
-      
-      console.log('📊 Analytics:', eventName, properties);
-    } catch (error) {
-      console.error('Analytics error:', error);
-    }
-  },
-  
-  /**
-   * Store event locally in Chrome storage
-   */
-  async storeLocally(event) {
-    try {
-      const result = await chrome.storage.local.get(['analytics']);
-      const events = result.analytics || [];
-      
-      events.push(event);
-      
-      // Keep only last 1000 events
-      if (events.length > 1000) {
-        events.shift();
-      }
-      
-      await chrome.storage.local.set({ analytics: events });
-    } catch (error) {
-      console.error('Failed to store analytics:', error);
-    }
-  },
-  
-  /**
-   * Send event to backend
-   */
-  async sendToBackend(event) {
-    // Skip if no endpoint configured
-    if (!this.ENDPOINT || this.ENDPOINT === 'YOUR_ANALYTICS_ENDPOINT') {
-      console.log('📊 Analytics: No backend endpoint configured, skipping remote tracking');
-      return;
-    }
-    
-    try {
-      await fetch(this.ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(event)
-      });
-    } catch (error) {
-      // Don't throw error for analytics failures
-      console.warn('Analytics backend unavailable:', error.message);
-    }
-  },
-  
-  /**
-   * Get all stored events
-   */
-  async getEvents() {
-    try {
-      const result = await chrome.storage.local.get(['analytics']);
-      return result.analytics || [];
-    } catch (error) {
-      console.error('Failed to get analytics:', error);
-      return [];
-    }
-  },
-  
-  /**
-   * Get analytics summary
-   */
-  async getSummary() {
-    const events = await this.getEvents();
-    
-    const summary = {
-      totalEvents: events.length,
-      problemsSolved: events.filter(e => e.name === 'problem_solved').length,
-      problemsFailed: events.filter(e => e.name === 'problem_failed').length,
-      checkoutsInitiated: events.filter(e => e.name === 'checkout_initiated').length,
-      subscriptionsCreated: events.filter(e => e.name === 'subscription_created').length,
-      averageLatency: 0,
-      successRate: 0
-    };
-    
-    // Calculate average latency
-    const solvedEvents = events.filter(e => e.name === 'problem_solved' && e.properties.latency);
-    if (solvedEvents.length > 0) {
-      const totalLatency = solvedEvents.reduce((sum, e) => sum + e.properties.latency, 0);
-      summary.averageLatency = Math.round(totalLatency / solvedEvents.length);
-    }
-    
-    // Calculate success rate
-    const totalAttempts = summary.problemsSolved + summary.problemsFailed;
-    if (totalAttempts > 0) {
-      summary.successRate = Math.round((summary.problemsSolved / totalAttempts) * 100);
-    }
-    
-    return summary;
-  },
-  
-  /**
-   * Clear all analytics data
-   */
-  async clear() {
-    try {
-      await chrome.storage.local.set({ analytics: [] });
-      console.log('Analytics cleared');
-    } catch (error) {
-      console.error('Failed to clear analytics:', error);
-    }
-  }
-};
+    },
 
-// PostHog Integration (if you want to use PostHog)
-const PostHogAnalytics = {
-  API_KEY: 'phc_x8OaNbVVPxgy1QF3SAWA7Q1ptDVNaURez9BcVp6rHmb',
-  HOST: 'https://app.posthog.com',
-  
-  async track(eventName, properties = {}) {
-    try {
-      await fetch(`${this.HOST}/capture/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          api_key: this.API_KEY,
+    async setApiKey(key) {
+      await setAll({ [STORAGE.API_KEY]: key });
+      return true;
+    },
+
+    async setHost(host) {
+      await setAll({ [STORAGE.HOST]: host || DEFAULT_HOST });
+      return true;
+    },
+
+    async optIn() {
+      await setAll({ [STORAGE.ENABLED]: true });
+      return true;
+    },
+
+    async optOut() {
+      await setAll({ [STORAGE.ENABLED]: false });
+      return true;
+    },
+
+    async isEnabled() {
+      const s = await this.getSettings();
+      return !!s.analyticsEnabled;
+    },
+
+    async getDistinctId() {
+      return await ensureDistinctId();
+    },
+
+    // Store event locally (keeps bounded history)
+    async storeLocally(event) {
+      try {
+        const r = await getAll([STORAGE.EVENTS]);
+        const events = r[STORAGE.EVENTS] || [];
+        events.push(event);
+        if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
+        await setAll({ [STORAGE.EVENTS]: events });
+      } catch (err) {
+        console.warn('analytics.storeLocally error', err);
+      }
+    },
+
+    async getEvents() {
+      try {
+        const r = await getAll([STORAGE.EVENTS]);
+        return r[STORAGE.EVENTS] || [];
+      } catch (err) {
+        console.error('analytics.getEvents error', err);
+        return [];
+      }
+    },
+
+    async clear() {
+      await setAll({ [STORAGE.EVENTS]: [] });
+      return true;
+    },
+
+    // Send event to PostHog capture endpoint (returns boolean)
+    async _sendToPostHog(eventName, properties = {}) {
+      try {
+        const s = await this.getSettings();
+        if (!s.posthogApiKey) {
+          console.warn('analytics: missing PostHog API key');
+          return false;
+        }
+        const distinct_id = s.analyticsDistinctId || await ensureDistinctId();
+        const payload = {
+          api_key: s.posthogApiKey,
           event: eventName,
-          properties: {
-            ...properties,
-            distinct_id: await this.getDistinctId(),
+          properties: Object.assign({
+            distinct_id,
+            time: nowIso(),
+            source: 'mathsnap-extension',
             $lib: 'chrome-extension',
-            $lib_version: '1.0.0'
-          }
-        })
-      });
-    } catch (error) {
-      console.error('PostHog error:', error);
-    }
-  },
-  
-  async getDistinctId() {
-    const result = await chrome.storage.local.get(['distinctId']);
-    if (result.distinctId) {
-      return result.distinctId;
-    }
-    
-    const newId = 'user_' + Math.random().toString(36).substr(2, 9);
-    await chrome.storage.local.set({ distinctId: newId });
-    return newId;
-  }
-};
+            $lib_version: chrome.runtime.getManifest().version
+          }, properties)
+        };
+        const host = s.posthogHost || DEFAULT_HOST;
+        const res = await fetch(`${host.replace(/\/$/, '')}/capture/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          console.warn('analytics: PostHog returned', res.status);
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.warn('analytics: send error', err);
+        return false;
+      }
+    },
 
-// Supabase Integration (if you want to use Supabase)
-const SupabaseAnalytics = {
-  URL: 'YOUR_SUPABASE_URL',
-  KEY: 'YOUR_SUPABASE_ANON_KEY',
-  
-  async track(eventName, properties = {}) {
-    try {
-      await fetch(`${this.URL}/rest/v1/analytics_events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.KEY,
-          'Authorization': `Bearer ${this.KEY}`
-        },
-        body: JSON.stringify({
-          event_name: eventName,
-          properties: properties,
-          created_at: new Date().toISOString()
-        })
-      });
-    } catch (error) {
-      console.error('Supabase error:', error);
-    }
-  }
-};
+    // Public track method: stores locally and attempts to send if enabled
+    async track(eventName, properties = {}) {
+      try {
+        const settings = await this.getSettings();
+        const eventRecord = {
+          name: eventName,
+          properties: Object.assign({}, properties),
+          timestamp: Date.now()
+        };
 
-// Export the analytics client you want to use
-// window.Analytics = Analytics; // Default local analytics
-window.Analytics = PostHogAnalytics; // Use PostHog
-// window.Analytics = SupabaseAnalytics; // Use Supabase
+        // store locally always (for debugging/summary)
+        await this.storeLocally(eventRecord);
+
+        if (!settings.analyticsEnabled) {
+          // not enabled, do not send to remote
+          return false;
+        }
+
+        const ok = await this._sendToPostHog(eventName, properties);
+        return ok;
+      } catch (err) {
+        console.warn('analytics.track error', err);
+        return false;
+      }
+    },
+
+    // Summary helpers
+    async getSummary() {
+      const events = await this.getEvents();
+      const summary = {
+        totalEvents: events.length,
+        problemsSolved: events.filter(e => e.name === 'problem_solved').length,
+        problemsFailed: events.filter(e => e.name === 'problem_failed').length,
+        checkoutsInitiated: events.filter(e => e.name === 'checkout_initiated').length,
+        subscriptionsCreated: events.filter(e => e.name === 'subscription_created').length,
+        averageLatency: 0,
+        successRate: 0
+      };
+
+      const solved = events.filter(e => e.name === 'problem_solved' && e.properties && typeof e.properties.latency === 'number');
+      if (solved.length) {
+        const totalLatency = solved.reduce((sum, e) => sum + e.properties.latency, 0);
+        summary.averageLatency = Math.round(totalLatency / solved.length);
+      }
+
+      const totalAttempts = summary.problemsSolved + summary.problemsFailed;
+      if (totalAttempts > 0) summary.successRate = Math.round((summary.problemsSolved / totalAttempts) * 100);
+
+      return summary;
+    }
+  };
+
+  // Expose API
+  window.analytics = Analytics;
+})();

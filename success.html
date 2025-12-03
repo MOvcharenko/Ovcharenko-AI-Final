@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Successful - MathSnap AI</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful</title>
+
   <style>
     * {
       margin: 0;
@@ -42,6 +43,7 @@
       margin: 0 auto 24px;
       font-size: 40px;
       animation: scaleIn 0.5s ease-out;
+      color: white;
     }
 
     @keyframes scaleIn {
@@ -143,63 +145,60 @@
     }
   </style>
 </head>
+
 <body>
   <div class="success-container">
-    <div class="success-icon">🎉</div>
-    
-    <h1>Payment Successful!</h1>
-    <p class="subtitle">Welcome to MathSnap AI Premium</p>
-    
+    <div class="success-icon">✔</div>
+
+    <h1>Payment Successful</h1>
+    <p class="subtitle">Your MathSnap AI Premium is now active 🎉</p>
+
     <div class="features-unlocked">
       <h3>Premium Features Unlocked</h3>
       <ul>
-        <li>Unlimited math problems per day</li>
-        <li>Advanced image recognition</li>
-        <li>Detailed step-by-step explanations</li>
-        <li>Save and export solution history</li>
-        <li>Priority support</li>
+        <li>Unlimited math photo uploads</li>
+        <li>Step-by-step explanations</li>
+        <li>Full LaTeX solutions</li>
+        <li>No rate limits</li>
       </ul>
     </div>
-    
-    <button id="startButton" class="action-button">
-      Start Using Premium Features
-    </button>
-    
-    <a href="#" class="receipt-link">View Receipt</a>
-    
-    <div class="countdown">
-      This page will close automatically in <span id="countdown">5</span> seconds...
-    </div>
+
+    <button class="action-button" id="closeBtn">Close</button>
+
+    <p class="countdown">This tab will automatically close in <span id="timer">5</span> seconds.</p>
   </div>
 
   <script>
-    // Mark payment as successful
-    chrome.storage.local.set({
-      isPremium: true,
-      paymentSuccess: true,
-      subscriptionDate: new Date().toISOString()
-    });
+    // IMPORTANT:
+    // This guarantees that Stripe → success.html actually activates premium.
 
-    // Countdown timer
+    (async () => {
+      const data = await chrome.storage.local.get(["awaitingStripeReturn"]);
+
+      if (data.awaitingStripeReturn) {
+        console.log("Detected return from Stripe, activating premium…");
+        await StripePayment.markPaymentComplete();
+      } else {
+        console.log("success.html opened manually, skipping activation.");
+      }
+    })();
+
+    // Auto close
     let seconds = 5;
-    const countdownEl = document.getElementById('countdown');
-    
+    const timerEl = document.getElementById("timer");
+
     const countdown = setInterval(() => {
       seconds--;
-      countdownEl.textContent = seconds;
-      
+      timerEl.textContent = seconds;
+
       if (seconds <= 0) {
         clearInterval(countdown);
         window.close();
       }
     }, 1000);
 
-    // Start button
-    document.getElementById('startButton').addEventListener('click', () => {
-      // Open extension popup
-      chrome.action.openPopup();
-      window.close();
-    });
+    // Close button
+    document.getElementById("closeBtn").addEventListener("click", () => window.close());
   </script>
 </body>
 </html>

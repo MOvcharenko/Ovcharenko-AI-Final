@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful - MathSnap AI</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .success-container {
+      background: white;
+      border-radius: 16px;
+      padding: 48px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 40px;
+      animation: scaleIn 0.5s ease-out;
+    }
+
+    @keyframes scaleIn {
+      0% {
+        transform: scale(0);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    h1 {
+      font-size: 32px;
+      color: #1f2937;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+
+    .features-unlocked {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+
+    .features-unlocked h3 {
+      font-size: 14px;
+      color: #166534;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .features-unlocked ul {
+      list-style: none;
+    }
+
+    .features-unlocked li {
+      padding: 8px 0;
+      color: #166534;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .features-unlocked li::before {
+      content: '✓';
+      color: #10b981;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .action-button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .action-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .receipt-link {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+      display: block;
+      margin-top: 16px;
+    }
+
+    .receipt-link:hover {
+      text-decoration: underline;
+    }
+
+    .countdown {
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="success-container">
+    <div class="success-icon">🎉</div>
+    
+    <h1>Payment Successful!</h1>
+    <p class="subtitle">Welcome to MathSnap AI Premium</p>
+    
+    <div class="features-unlocked">
+      <h3>Premium Features Unlocked</h3>
+      <ul>
+        <li>Unlimited math problems per day</li>
+        <li>Advanced image recognition</li>
+        <li>Detailed step-by-step explanations</li>
+        <li>Save and export solution history</li>
+        <li>Priority support</li>
+      </ul>
+    </div>
+    
+    <button id="startButton" class="action-button">
+      Start Using Premium Features
+    </button>
+    
+    <a href="#" class="receipt-link">View Receipt</a>
+    
+    <div class="countdown">
+      This page will close automatically in <span id="countdown">5</span> seconds...
+    </div>
+  </div>
+
+  <script>
+    // Mark payment as successful
+    chrome.storage.local.set({
+      isPremium: true,
+      paymentSuccess: true,
+      subscriptionDate: new Date().toISOString()
+    });
+
+    // Countdown timer
+    let seconds = 5;
+    const countdownEl = document.getElementById('countdown');
+    
+    const countdown = setInterval(() => {
+      seconds--;
+      countdownEl.textContent = seconds;
+      
+      if (seconds <= 0) {
+        clearInterval(countdown);
+        window.close();
+      }
+    }, 1000);
+
+    // Start button
+    document.getElementById('startButton').addEventListener('click', () => {
+      // Open extension popup
+      chrome.action.openPopup();
+      window.close();
+    });
+  </script>
+</body>
+</html>

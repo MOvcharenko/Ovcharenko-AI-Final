@@ -307,37 +307,18 @@ function displaySolution(solution) {
 // Handle checkout
 async function handleCheckout() {
   try {
-    // In production, this would call your Stripe backend
-    // For now, we'll simulate the flow
-    
     Analytics.track('checkout_initiated', {
       tier: 'premium'
     });
     
-    // Simulate payment processing
-    const confirmed = confirm(
-      'This will redirect you to Stripe checkout.\n\n' +
-      'In test mode, this just activates premium.\n\n' +
-      'Continue?'
-    );
+    // Open Stripe Payment Link
+    await StripePayment.openCheckout();
     
-    if (confirmed) {
-      // Activate premium (in production, this happens after payment)
-      state.isPremium = true;
-      await saveState();
-      
-      Analytics.track('subscription_created', {
-        tier: 'premium',
-        price: 4.99
-      });
-      
-      alert('Premium activated! 🎉');
-      showView('home');
-      updateUI();
-    }
+    Analytics.track('stripe_checkout_opened');
+    
   } catch (error) {
     console.error('Checkout error:', error);
-    alert('Checkout failed. Please try again.');
+    alert('Checkout failed. Please try again.\n\nError: ' + error.message);
   }
 }
 

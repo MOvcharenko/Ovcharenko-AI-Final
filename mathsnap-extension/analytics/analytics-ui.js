@@ -8,6 +8,7 @@
   const testBtn = document.getElementById('testBtn');
   const clearBtn = document.getElementById('clearBtn');
   const viewDashboardBtn = document.getElementById('viewDashboardBtn');
+  const localDashboardBtn = document.getElementById('localDashboardBtn');
   const statusMsg = document.getElementById('status-message');
   const statsGrid = document.getElementById('statsGrid');
   const eventCountEl = document.getElementById('eventCount');
@@ -113,6 +114,10 @@
 
   viewDashboardBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://app.posthog.com/events' });
+  });
+
+  localDashboardBtn.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
   });
 
   clearBtn.addEventListener('click', async () => {
